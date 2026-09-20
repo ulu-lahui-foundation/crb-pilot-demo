@@ -1,0 +1,110 @@
+{
+ "generated_at": "2026-09-20T07:22:08-10:00",
+ "profile": "demo",
+ "demo": false,
+ "synthetic_detections": 10,
+ "project": "Ko Olina CRB Smart Containment Pilot - Phase 0",
+ "thresholds": {
+  "tau_low": 0.3,
+  "tau_high": 0.55,
+  "model_version": "crb-v1-uhinit+t"
+ },
+ "cameras": [
+  {
+   "id": "cam1",
+   "display_name": "Camera 1 - Main Gate / Old Luau Drive",
+   "lat": 21.343,
+   "lon": -158.12,
+   "zone": "farrington_interchange",
+   "coord_status": "approximate",
+   "model": "Tactacam Reveal X Pro",
+   "install_ts": "2026-08-27T12:00:00-10:00",
+   "notes": "",
+   "photos_total": 9997,
+   "photos_24h": 2,
+   "last_seen": "2026-09-19T10:23:57-10:00",
+   "battery_last": 5,
+   "confirmed": 5,
+   "probable": 1,
+   "pending": 9,
+   "health": [
+    "no photos in 6h",
+    "battery low",
+    "trigger rate > 300/h, reduce PIR sensitivity"
+   ]
+  },
+  {
+   "id": "cam2",
+   "display_name": "Camera 2 - Ko Olina Harbor / Jetty",
+   "lat": 21.3285,
+   "lon": -158.118,
+   "zone": "marina_jetty",
+   "coord_status": "confirmed",
+   "model": "Tactacam Reveal X Pro",
+   "install_ts": "2026-08-27T12:30:00-10:00",
+   "notes": "",
+   "photos_total": 7606,
+   "photos_24h": 7,
+   "last_seen": "2026-09-19T13:32:12-10:00",
+   "battery_last": 8,
+   "confirmed": 0,
+   "probable": 0,
+   "pending": 0,
+   "health": [
+    "no photos in 6h",
+    "battery low"
+   ]
+  },
+  {
+   "id": "cam3",
+   "display_name": "Camera 3 - Koio Drive Median",
+   "lat": 21.3411,
+   "lon": -158.1154,
+   "zone": "upper_koio",
+   "coord_status": "confirmed",
+   "model": "Tactacam Reveal X Pro",
+   "install_ts": "2026-08-27T13:30:00-10:00",
+   "notes": "",
+   "photos_total": 9920,
+   "photos_24h": 135,
+   "last_seen": "2026-09-19T15:38:55-10:00",
+   "battery_last": 21,
+   "confirmed": 5,
+   "probable": 1,
+   "pending": 4,
+   "health": [
+    "no photos in 6h",
+    "battery low",
+    "trigger rate > 300/h, reduce PIR sensitivity"
+   ]
+  }
+ ],
+ "totals": {
+  "photos": 27523,
+  "flagged": 25,
+  "probable": 2,
+  "confirmed": 10,
+  "pending": 13,
+  "rejected": 27508,
+  "nights": 25
+ },
+ "first_night": "2026-08-26",
+ "last_night": "2026-09-19",
+ "last_confirmed_ts": "2026-09-19T03:54:54-10:00",
+ "nights_since_confirmed": 1,
+ "pile_compliance": {
+  "koca_piles": 0,
+  "koca_over_72h": 0,
+  "pct_within_72h": null
+ },
+ "classifier": {
+  "model_version": "crb-v1-uhinit+t",
+  "labelled": 88,
+  "tp": 0,
+  "fp": 0,
+  "fn": 0,
+  "precision": null,
+  "recall": null
+ },
+ "sampling_note": "Counts are PIR-triggered captures; trigger volume varies with wind. Detections per night are not normalized by sampling effort until a time-lapse stream exists."
+}

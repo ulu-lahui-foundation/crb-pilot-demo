@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ko Olina CRB Pilot — How it works</title>
+<link rel="stylesheet" href="styles.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="assets/config.js"></script>
+<script src="app.js"></script>
+<style>
+  .flow { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 8px 0 4px; }
+  .step { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; position: relative; }
+  .step .n { display: inline-block; width: 22px; height: 22px; border-radius: 50%; background: var(--accent); color: #fff; font-weight: 700; font-size: 12px; text-align: center; line-height: 22px; margin-bottom: 6px; }
+  .step h3 { color: var(--ink); font-weight: 600; margin-bottom: 4px; }
+  .step p { margin: 0; color: var(--ink-2); font-size: 12.5px; }
+  .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+  .gallery figure { margin: 0; background: var(--surface-2); border-radius: 8px; overflow: hidden; border: 1px solid var(--border); }
+  .gallery img { width: 100%; display: block; aspect-ratio: 16/9; object-fit: cover; }
+  .gallery figcaption { padding: 8px 10px; font-size: 12px; color: var(--ink-2); }
+  .callout { border-left: 4px solid var(--warning); background: var(--surface-2); padding: 10px 14px; border-radius: 6px; color: var(--ink-2); }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; } @media (max-width: 800px) { .two { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header class="top"><div class="row">
+  <div class="brand"><span class="dot"></span><div><h1>Ko Olina CRB Smart Containment Pilot</h1><small>loading…</small></div></div>
+  <nav class="tabs"><a href="index.html">Overview</a><a href="trap.html">Traps</a><a href="inventory.html">Green waste &amp; damage</a><a href="methods.html">Methods &amp; exports</a><a href="howitworks.html">How it works</a></nav>
+</div></header>
+<div id="banner" class="banner" hidden></div>
+<main>
+  <section class="card prose">
+    <h2 style="margin-top:0">From a palm to a decision, once a day</h2>
+    <p>The pilot replaces monthly manual trap checks with cameras on host palms and a small amount of software. Nothing here runs in real time: photos are collected overnight, processed each morning, and the dashboard is rebuilt. That keeps the system cheap, inspectable, and free of any server that could fail in the field.</p>
+    <div class="flow">
+      <div class="step"><span class="n">1</span><h3>Capture</h3><p>Cellular trail cameras mounted below the crown of a host palm photograph it at night, when adult coconut rhinoceros beetles are active, and send thumbnails over LTE.</p></div>
+      <div class="step"><span class="n">2</span><h3>Collect</h3><p>Each morning the photos and their weather records (wind, temperature, moon phase) are pulled from the camera vendor's cloud into the pilot's own database. Every image is kept.</p></div>
+      <div class="step"><span class="n">3</span><h3>Screen</h3><p>A detector trained to recognise adult CRB scores every frame and draws a box where it thinks a beetle is. Most frames are wind-blown fronds and score near zero.</p></div>
+      <div class="step"><span class="n">4</span><h3>Review</h3><p>A person looks only at the handful of frames the detector flags, typically under two per night, and confirms or rejects each with one keystroke.</p></div>
+      <div class="step"><span class="n">5</span><h3>Report</h3><p>The dashboard is rebuilt with confirmed detections, camera health and the green-waste layers. A public view withholds imagery and parcel-level detail.</p></div>
+    </div>
+  </section>
+
+  <section class="card prose" id="synthcard">
+    <h2 style="margin-top:0">What a detection looks like</h2>
+    <div class="callout" id="synthnote">The frames below are <b>synthetic examples</b>: real photos from the pilot's cameras with a beetle from an openly licensed iNaturalist photograph composited in at true scale. The orange box and score are the detector's actual output on that frame. They exist to show the workflow before the cameras have captured a real beetle.</div>
+    <div class="gallery" id="gallery" style="margin-top:12px"></div>
+  </section>
+
+  <section class="two">
+    <div class="card prose"><h2 style="margin-top:0">What is real in this demonstration</h2>
+      <ul>
+        <li>All photo counts, capture times, wind and weather values, battery levels and camera health flags come from the three cameras installed on August 27, 2026.</li>
+        <li>The map, the target areas from the pilot plan, and the camera positions (rounded) are real.</li>
+        <li>The detector is a real model, fine-tuned from the University of Hawaiʻi CRB-Cam detector, and the scores shown are its real outputs.</li>
+      </ul>
+    </div>
+    <div class="card prose"><h2 style="margin-top:0">What is not</h2>
+      <ul>
+        <li>Every "confirmed" detection in this build is a synthetic example, labelled as such wherever it appears. No adult CRB has been confirmed on camera at Ko Olina yet.</li>
+        <li>The green-waste pile and damage inventories are empty until the drone flight is annotated.</li>
+        <li>Real photographs of flagged frames are withheld from public views; only the synthetic examples carry imagery here.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="card prose">
+    <h2 style="margin-top:0">Why the cameras have not caught a beetle yet, and what changes next</h2>
+    <p>Three weeks of data showed that motion triggers are dominated by wind, that the daily capture spike at 17:00 to 19:00 is sunlight on the crown, and that only one frame in six falls in the night window when beetles fly. University of Hawaiʻi trap studies place two thirds of beetle activity within three hours after dusk. The next step is to move the cameras closer to the crown, restrict capture to the night window, and add a scheduled capture stream, then let the detector and reviewers do their work. The full deployment guidance and the classifier design are in the Phase 0 technical report.</p>
+  </section>
+</main>
+<footer>Ulu HI-Tech · Ulu Lāhui Foundation · Ko Olina Community Association · Office of Councilmember Andria Tupola</footer>
+<script>
+CRB.ready(data => {
+  const g = document.getElementById("gallery");
+  const synth = data.detections.filter(d => d.synthetic);
+  if (!synth.length) { document.getElementById("synthcard").hidden = true; return; }
+  for (const d of synth.slice(0, 8)) {
+    g.append(CRB.el("figure", {}, CRB.el("a", { href: d.thumb, target: "_blank" }, CRB.el("img", { src: d.thumb, alt: "synthetic detection example", loading: "lazy" })),
+      CRB.el("figcaption", {}, `${CRB.camName(d.camera_id)} · ${CRB.fmtTs(d.ts)} HST · detector score ${d.score.toFixed(2)} · synthetic example`)));
+  }
+});
+</script>
+</body>
+</html>

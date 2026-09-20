@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ko Olina CRB Pilot — Methods &amp; exports</title>
+<link rel="stylesheet" href="styles.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="assets/config.js"></script>
+<script src="app.js"></script>
+</head>
+<body>
+<header class="top"><div class="row">
+  <div class="brand"><span class="dot"></span><div><h1>Ko Olina CRB Smart Containment Pilot</h1><small>loading…</small></div></div>
+  <nav class="tabs"><a href="index.html">Overview</a><a href="trap.html">Traps</a><a href="inventory.html">Green waste &amp; damage</a><a href="methods.html">Methods &amp; exports</a><a href="howitworks.html">How it works</a></nav>
+</div></header>
+<div id="banner" class="banner" hidden></div>
+<main>
+  <section class="grid two">
+    <div class="card"><div class="head"><div><h2>Classifier funnel</h2><div class="sub">How captured frames become confirmed detections</div></div><div class="tools"></div></div><div id="funnel"></div></div>
+    <div class="card"><div class="head"><div><h2>Build and classifier facts</h2><div class="sub">Recorded with every build so report figures are reproducible</div></div></div><dl class="kv" id="facts"></dl></div>
+  </section>
+  <section class="card prose" id="methods">
+    <h2>How the numbers are produced</h2>
+    <p><b>Capture.</b> Three Tactacam Reveal X Pro cellular trail cameras are mounted on host palms below the crown, PIR-triggered, with no-glow infrared at night. Photos are bulk-exported from the Reveal web app and ingested by hash, so re-exports never double count. Each frame carries a camera id and HST timestamp; temperature, wind and pressure come from the Reveal metadata when present and from Open-Meteo hourly reanalysis otherwise.</p>
+    <p><b>Night.</b> Adult CRB are nocturnal, so all nightly figures run noon to noon and are named by the evening date. Hour-of-night charts start at noon for the same reason.</p>
+    <p><b>Classification.</b> Frames are scored 0–1 by the active model recorded in the facts panel. The current model is a YOLOv8m detector fine-tuned from the University of Hawaiʻi CRB-Cam weights (Paryavi &amp; Jenkins, 2025) on beetle images composited onto this site's own frames, followed by a temporal rule: a box that persists across consecutive frames from the same camera is boosted, a box with no neighbour is damped. Thresholds are calibrated per model from its validation F1 curve. Scores at or above τ<sub>high</sub> are <i>probable</i>; scores between τ<sub>low</sub> and τ<sub>high</sub> are <i>pending</i> human review; below τ<sub>low</sub> is rejected. A human label always overrides a score: <i>confirmed</i> means a reviewer marked the frame CRB. Precision and recall are computed on labelled frames with predicted positive = score ≥ τ<sub>high</sub>. Until frames with real beetles are confirmed, the model's validation numbers refer to synthetic composites and the only measured quantity on real frames is the false-alarm rate.</p>
+    <p><b>Sampling caveat.</b> <span id="samplingnote"></span> Until a scheduled time-lapse stream exists, compare nights by confirmed detections and read trigger volume as a wind indicator, not an activity indicator.</p>
+    <p><b>Green-waste piles.</b> Each pile has a first- and last-observed date from drone orthomosaics, ground-truth walks or KOCA records. Persistence class is the span between them: under 48 h (the larval-viability guidance), 48–72 h (inside KOCA's internal policy window), over 72 h. Compliance is the share of KOCA-jurisdiction piles not exceeding 72 h.</p>
+    <p><b>Damage.</b> Crown-damage points come from the KOCA April 15 map, the micro-drone reconnaissance and repeat flights. Where treatment occurs nearby they are tagged before/after so efficacy can be described without the pilot conducting treatment.</p>
+    <p><b>Confidentiality.</b> The public build aggregates piles and damage to zone centroids, withholds imagery and omits any feature whose landowner has not consented, per Section 12.4 of the pilot plan. Camera coordinates are rounded in the public build.</p>
+    <h2>Known gaps</h2>
+    <ul id="gaps"></ul>
+    <h2>Exports</h2>
+    <p>Every chart has a Table view and a CSV button. The underlying build files are linked here for the baseline assessment.</p>
+    <ul id="exports"></ul>
+  </section>
+</main>
+<footer>Ulu HI-Tech · Ulu Lāhui Foundation · Ko Olina Community Association · Office of Councilmember Andria Tupola</footer>
+<script>
+CRB.ready(data => {
+  const s = data.summary, T = CRB.T(), t = s.totals, c = s.classifier;
+  const stages = [["Captured", t.photos], ["Passed τ low (flagged)", t.flagged], ["Probable (≥ τ high) or pending", t.probable + t.pending + t.confirmed], ["Human-confirmed CRB", t.confirmed]];
+  CRB.chart(document.getElementById("funnel"), { title: "classifier_funnel", type: "bar", horizontal: true, labels: stages.map(x => x[0]), yTitle: "frames",
+    datasets: [{ label: "Frames", color: T.cam.cam1, data: stages.map(x => x[1]) }],
+    note: stages.map(([k, n]) => `${k}: ${CRB.fmt(n)}`).join(" · ") + `. ${CRB.pct(100 * t.flagged / (t.photos || 1))} of captures reached review; ${CRB.pct(100 * t.confirmed / (t.flagged || 1))} of flagged frames were confirmed.`,
+    table: { cols: [{ key: "stage", label: "Stage" }, { key: "frames", label: "Frames", num: true }], rows: stages.map(([stage, frames]) => ({ stage, frames })) } });
+  const facts = [["Build generated", CRB.fmtTs(s.generated_at) + " HST"], ["Profile", s.profile + (s.demo ? " (DEMO, synthetic)" : "")], ["Nights covered", `${s.first_night ?? "–"} → ${s.last_night ?? "–"} (${t.nights})`],
+    ["Classifier model", c.model_version || "none yet"], ["τ low / τ high", `${s.thresholds.tau_low} / ${s.thresholds.tau_high}`], ["Labelled frames", CRB.fmt(c.labelled)],
+    ["Precision at τ high", c.precision == null ? "–" : CRB.pct(100 * c.precision) + ` (${c.tp} TP, ${c.fp} FP)`], ["Recall at τ high", c.recall == null ? "–" : CRB.pct(100 * c.recall) + ` (${c.fn} FN)`],
+    ["Rejected frames", CRB.fmt(t.rejected)], ["Pending review", CRB.fmt(t.pending)]];
+  const dl = document.getElementById("facts"); for (const [k, v] of facts) dl.append(CRB.el("dt", {}, k), CRB.el("dd", {}, v));
+  document.getElementById("samplingnote").textContent = s.sampling_note;
+  const gaps = [];
+  for (const cam of s.cameras) if (cam.coord_status !== "confirmed") gaps.push(`${cam.display_name}: coordinates are ${cam.coord_status}; the installation email listed Camera 2's coordinates for this unit.`);
+  for (const cam of s.cameras) for (const h of cam.health) gaps.push(`${cam.display_name}: ${h}.`);
+  if (!c.model_version) gaps.push("No classifier scores yet; all frames are unclassified.");
+  if (data.zones.features.some(f => f.properties.geometry_status === "approximate")) gaps.push("Target-area polygons are hand-digitized from the Section 6 table; replace with HPDS zone boundaries when delivered.");
+  if (!s.pile_compliance.koca_piles) gaps.push("Pile inventory is empty; populate data/piles.geojson from orthomosaic annotation.");
+  if (s.demo) gaps.push("This is a demo build: photos, scores, labels, piles, damage and treatments are synthetic.");
+  gaps.push("Camera 3 is framed farther from the crown than Cameras 1–2; confirm a 2-inch beetle is resolvable at that distance.");
+  gaps.push("PIR trigger counts have no fixed sampling denominator; a dusk-to-dawn time-lapse stream would make nightly comparisons defensible.");
+  const g = document.getElementById("gaps"); for (const x of gaps) g.append(CRB.el("li", {}, x));
+  const ex = document.getElementById("exports");
+  for (const f of ["summary.json", "nightly.json", "hourly.json", "env.json", "detections.json", "zones.geojson", "piles.geojson", "damage.geojson", "treatments.json", "piles_by_zone.json"])
+    ex.append(CRB.el("li", {}, CRB.el("a", { href: "data/" + f, download: f }, f)));
+});
+</script>
+</body>
+</html>

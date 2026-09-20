@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ko Olina CRB Pilot — Trap detail</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="styles.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="assets/config.js"></script>
+<script src="app.js"></script>
+</head>
+<body>
+<header class="top"><div class="row">
+  <div class="brand"><span class="dot"></span><div><h1>Ko Olina CRB Smart Containment Pilot</h1><small>loading…</small></div></div>
+  <nav class="tabs"><a href="index.html">Overview</a><a href="trap.html">Traps</a><a href="inventory.html">Green waste &amp; damage</a><a href="methods.html">Methods &amp; exports</a><a href="howitworks.html">How it works</a></nav>
+</div></header>
+<div id="banner" class="banner" hidden></div>
+<main>
+  <div id="filters" class="filters" aria-label="Filters"></div>
+  <section id="picker" class="grid kpi"></section>
+  <section class="card" id="camcard"><div class="head"><div><h2 id="camname">Trap</h2><div class="sub" id="camsub"></div></div></div>
+    <dl class="kv" id="camkv"></dl></section>
+  <section class="grid two">
+    <div class="card"><div class="head"><div><h2>Captures by night and hour</h2><div class="sub">PIR trigger volume; one hue, darker is more</div></div></div><div id="heat"></div></div>
+    <div class="card"><div class="head"><div><h2>Confirmed CRB by night and hour</h2><div class="sub">Human-confirmed frames only</div></div></div><div id="heatc"></div></div>
+  </section>
+  <section class="grid two">
+    <div class="card"><div class="head"><div><h2>Detections by night</h2><div class="sub">This camera</div></div><div class="tools"></div></div><div id="nightly"></div></div>
+    <div class="card"><div class="head"><div><h2>Hour of night</h2><div class="sub">Confirmed against trigger volume, each indexed to its peak hour</div></div><div class="tools"></div></div><div id="hourly"></div></div>
+  </section>
+  <section class="card"><div class="head"><div><h2>Flagged frames</h2><div class="sub">This camera, newest first</div></div></div><div id="detections"></div></section>
+</main>
+<footer>Ulu HI-Tech · Ulu Lāhui Foundation · Ko Olina Community Association · Office of Councilmember Andria Tupola</footer>
+<script>
+CRB.ready(data => {
+  const s = data.summary, T = CRB.T();
+  const q = new URLSearchParams(location.search);
+  const id = data.cams[q.get("id")] ? q.get("id") : s.cameras[0].id;
+  const cam = data.cams[id];
+  // camera picker tiles
+  const pk = document.getElementById("picker");
+  for (const c of s.cameras) {
+    const t = CRB.tile(c.display_name.replace(/^Camera \d+ - /, ""), CRB.fmt(c.confirmed), { delta: `confirmed · ${CRB.fmt(c.pending)} pending · ${CRB.compact(c.photos_total)} photos` });
+    t.style.borderLeft = `4px solid ${CRB.camColor(c.id)}`; t.style.cursor = "pointer";
+    if (c.id === id) t.style.outline = `2px solid ${CRB.camColor(c.id)}`;
+    t.addEventListener("click", () => { location.search = "?id=" + c.id; });
+    pk.append(t);
+  }
+  document.getElementById("camname").textContent = cam.display_name;
+  document.getElementById("camsub").textContent = `${cam.model} · installed ${CRB.fmtTs(cam.install_ts)} HST · zone ${cam.zone}`;
+  const kv = document.getElementById("camkv");
+  const rows = [["Coordinates", `${cam.lat}, ${cam.lon}` + (cam.coord_status !== "confirmed" ? ` — ⚠ ${cam.coord_status}, needs field confirmation` : "")],
+    ["Last photo", CRB.fmtTs(cam.last_seen)], ["Photos, last 24 h", CRB.fmt(cam.photos_24h)], ["Photos, total", CRB.fmt(cam.photos_total)],
+    ["Battery", cam.battery_last == null ? "–" : cam.battery_last + " %"], ["Health", cam.health.length ? "⚠ " + cam.health.join("; ") : "✓ healthy"]];
+  if (cam.notes) rows.push(["Notes", cam.notes]);
+  for (const [k, v] of rows) kv.append(CRB.el("dt", {}, k), CRB.el("dd", {}, v));
+
+  let nightly, hourly;
+  CRB.filters(data, st => {
+    st.cams = new Set([id]);   // this page is scoped to one camera; the night range still applies
+    const sel = CRB.select(data, st), mine = sel.hourly.perCam[id] || { nights: [], photos: Array(24).fill(0), confirmed: Array(24).fill(0) };
+    CRB.heatmap(document.getElementById("heat"), mine.nights, { key: "photos" });
+    CRB.heatmap(document.getElementById("heatc"), mine.nights, { key: "confirmed" });
+    const labels = sel.nightly.map(n => CRB.fmtNight(n.night));
+    const nc = { title: id + "_detections_by_night", type: "bar", stacked: true, labels, yTitle: "frames",
+      datasets: ["confirmed", "probable", "pending"].map(k => ({ label: CRB.STATUS[k], color: T.status[k], data: sel.nightly.map(n => n[k]) })),
+      table: { cols: [{ key: "night", label: "Night" }, { key: "confirmed", label: "Confirmed", num: true }, { key: "probable", label: "Probable", num: true }, { key: "pending", label: "Pending", num: true }, { key: "photos", label: "Photos", num: true }], rows: sel.nightly } };
+    nightly ? nightly.update(nc) : (nightly = CRB.chart(document.getElementById("nightly"), nc));
+    const volMax = Math.max(1, ...mine.photos), confMax = Math.max(1, ...mine.confirmed);
+    const hc = { title: id + "_hour_of_night", type: "bar", labels: CRB.HOURS.map(CRB.hourLabel), yTitle: "% of that series' peak hour",
+      datasets: [{ label: "Confirmed CRB (share of peak)", color: T.status.confirmed, data: CRB.HOURS.map(h => +(100 * mine.confirmed[h] / confMax).toFixed(1)) },
+                 { label: "All captures (share of peak)", color: T.volume, data: CRB.HOURS.map(h => +(100 * mine.photos[h] / volMax).toFixed(1)) }],
+      note: `Peak hour bins over the selected nights: ${confMax} confirmed, ${CRB.fmt(volMax)} captures.`,
+      table: { cols: [{ key: "hour", label: "Hour" }, { key: "confirmed", label: "Confirmed", num: true }, { key: "photos", label: "Captures", num: true }], rows: CRB.HOURS.map(h => ({ hour: CRB.hourLabel(h), confirmed: mine.confirmed[h], photos: mine.photos[h] })) } };
+    hourly ? hourly.update(hc) : (hourly = CRB.chart(document.getElementById("hourly"), hc));
+    CRB.detectionsTable(document.getElementById("detections"), sel.detections, { limit: 25 });
+  });
+  // hide the camera chips on this page - the picker above does that job
+  document.querySelectorAll("#filters .group[aria-label='Cameras']").forEach(g => g.remove());
+});
+</script>
+</body>
+</html>

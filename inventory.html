@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ko Olina CRB Pilot — Green waste &amp; damage</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="styles.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="assets/config.js"></script>
+<script src="app.js"></script>
+</head>
+<body>
+<header class="top"><div class="row">
+  <div class="brand"><span class="dot"></span><div><h1>Ko Olina CRB Smart Containment Pilot</h1><small>loading…</small></div></div>
+  <nav class="tabs"><a href="index.html">Overview</a><a href="trap.html">Traps</a><a href="inventory.html">Green waste &amp; damage</a><a href="methods.html">Methods &amp; exports</a><a href="howitworks.html">How it works</a></nav>
+</div></header>
+<div id="banner" class="banner" hidden></div>
+<main>
+  <section id="kpis" class="grid kpi"></section>
+  <section class="grid map-row">
+    <div class="card"><div class="head"><div><h2>Breeding-substrate and damage layers</h2><div class="sub">Pile persistence uses the 48 h larval-viability target and KOCA's 72 h policy window</div></div></div>
+      <div id="map" class="map"></div><div class="map-legend"></div></div>
+    <div class="card"><div class="head"><div><h2>Piles by zone and persistence</h2><div class="sub">Count of inventoried piles in each Section 6 area</div></div><div class="tools"></div></div><div id="byzone"></div></div>
+  </section>
+  <section class="card"><div class="head"><div><h2>Green-waste pile inventory</h2><div class="sub" id="pilesub"></div><div class="tools" id="piletools"></div></div></div><div id="piles" class="tablewrap"></div></section>
+  <section class="card"><div class="head"><div><h2>Crown-damage observations</h2><div class="sub">From the KOCA April 15 map, micro-drone reconnaissance and repeat flights; tagged before/after where treatment occurs nearby</div></div></div><div id="damage" class="tablewrap"></div></section>
+  <section class="card"><div class="head"><div><h2>Treatment records (context only)</h2><div class="sub">Treatment is outside Phase 0 scope. Records supplied by KOCA or cooperating practitioners are shown so before/after comparisons can be tagged.</div></div></div><div id="treatments" class="tablewrap"></div></section>
+</main>
+<footer>Ulu HI-Tech · Ulu Lāhui Foundation · Ko Olina Community Association · Office of Councilmember Andria Tupola</footer>
+<script>
+CRB.ready(data => {
+  const s = data.summary, T = CRB.T(), pub = s.profile === "public";
+  const zoneName = Object.fromEntries(data.zones.features.map(f => [f.properties.id, f.properties.name]));
+  const pc = s.pile_compliance;
+  const k = document.getElementById("kpis");
+  k.append(CRB.tile("KOCA piles within 72 h", pc.pct_within_72h == null ? "–" : CRB.pct(pc.pct_within_72h), { hero: true, delta: pc.koca_piles ? `${pc.koca_over_72h} of ${pc.koca_piles} KOCA piles exceeded the 72 h window` : "no inventory yet", meter: pc.pct_within_72h, meterColor: pc.pct_within_72h >= 90 ? T.persist.under_48h : pc.pct_within_72h >= 70 ? T.persist["48_to_72h"] : T.persist.over_72h }));
+  const piles = data.piles.features.map(f => ({ ...f.properties, lon: f.geometry.coordinates[0], lat: f.geometry.coordinates[1] }));
+  const allCount = pub ? piles.reduce((a, p) => a + p.count, 0) : piles.length;
+  k.append(CRB.tile("Piles inventoried", CRB.fmt(allCount), { delta: pub ? "aggregated by zone" : `${piles.filter(p => p.persistence_class === "over_72h").length} over 72 h across all jurisdictions` }));
+  const dmg = data.damage.features.map(f => ({ ...f.properties, lon: f.geometry.coordinates[0], lat: f.geometry.coordinates[1] }));
+  k.append(CRB.tile("Damage observations", CRB.fmt(pub ? dmg.reduce((a, d) => a + d.count, 0) : dmg.length), { delta: pub ? "aggregated by zone" : `${dmg.filter(d => d.severity === "severe").length} severe` }));
+  k.append(CRB.tile("Treatment records", CRB.fmt(data.treatments.length), { delta: "context only; not pilot scope" }));
+
+  CRB.map(document.getElementById("map"), data);
+
+  // by zone stacked (ordinal-ish status classes: good/warning/critical carry meaning, so status palette + labels)
+  const zones = Object.keys(data.pilesByZone);
+  const classes = ["under_48h", "48_to_72h", "over_72h"];
+  CRB.chart(document.getElementById("byzone"), { title: "piles_by_zone", type: "bar", stacked: true, horizontal: true, tall: true, labels: zones.map(z => zoneName[z] || z), yTitle: "piles",
+    datasets: classes.map(c => ({ label: CRB.PERSIST[c], color: T.persist[c], data: zones.map(z => data.pilesByZone[z][c] || 0) })),
+    table: { cols: [{ key: "zone", label: "Zone" }, ...classes.map(c => ({ key: c, label: CRB.PERSIST[c], num: true }))], rows: zones.map(z => ({ zone: zoneName[z] || z, ...data.pilesByZone[z] })) } });
+
+  // pile table
+  const pcols = pub
+    ? [{ key: "name", label: "Zone" }, { key: "count", label: "Piles", num: true }, ...classes.map(c => ({ key: c, label: CRB.PERSIST[c], num: true }))]
+    : [{ key: "id", label: "ID" }, { key: "zone", label: "Zone", render: v => zoneName[v] || v }, { key: "jurisdiction", label: "Jurisdiction" },
+       { key: "persistence_class", label: "Persistence", render: v => CRB.badge(v, CRB.PERSIST[v]) }, { key: "first_seen", label: "First seen" }, { key: "last_seen", label: "Last seen" },
+       { key: "source", label: "Source" }, { key: "consent", label: "Consent", render: v => v ? "yes" : CRB.el("span", { class: "health warn" }, "no — internal only") }, { key: "description", label: "Description" }];
+  const prow = pub ? piles.map(p => ({ ...p, ...p.by_class })) : piles;
+  document.getElementById("pilesub").textContent = pub ? "Per-zone counts. Parcel-level locations are withheld pending landowner consent." : "Each pile with first/last observation; persistence class is derived from the observation span.";
+  document.getElementById("piles").append(CRB.table(pcols, prow));
+  document.getElementById("piletools").append(CRB.el("button", { onclick: () => CRB.downloadCsv("piles.csv", { cols: pcols, rows: prow }) }, "CSV"));
+
+  const dcols = pub
+    ? [{ key: "name", label: "Zone" }, { key: "count", label: "Observations", num: true }, { key: "by_severity", label: "By severity", render: v => Object.entries(v).map(([k, n]) => `${k}: ${n}`).join(", ") }]
+    : [{ key: "id", label: "ID" }, { key: "zone", label: "Zone", render: v => zoneName[v] || v }, { key: "severity", label: "Severity", render: v => CRB.badge(v, v) }, { key: "observed_on", label: "Observed" },
+       { key: "phase", label: "Phase" }, { key: "source", label: "Source" }, { key: "consent", label: "Consent", render: v => v ? "yes" : CRB.el("span", { class: "health warn" }, "no — internal only") }, { key: "description", label: "Description" }];
+  document.getElementById("damage").append(CRB.table(dcols, dmg));
+
+  const tcols = [{ key: "id", label: "ID" }, { key: "zone", label: "Zone", render: v => zoneName[v] || v }, { key: "treatment_type", label: "Type" }, { key: "product_terminology", label: "Product (practitioner term)" },
+    { key: "applied_on", label: "Applied" }, ...(pub ? [] : [{ key: "applied_by", label: "By" }]), { key: "trees", label: "Trees", num: true }, { key: "notes", label: "Notes" }];
+  document.getElementById("treatments").append(CRB.table(tcols, data.treatments));
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ko Olina CRB Pilot — Overview</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="styles.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="assets/config.js"></script>
+<script src="app.js"></script>
+</head>
+<body>
+<header class="top"><div class="row">
+  <div class="brand"><span class="dot"></span><div><h1>Ko Olina CRB Smart Containment Pilot</h1><small>loading…</small></div></div>
+  <nav class="tabs"><a href="index.html">Overview</a><a href="trap.html">Traps</a><a href="inventory.html">Green waste &amp; damage</a><a href="methods.html">Methods &amp; exports</a><a href="howitworks.html">How it works</a></nav>
+</div></header>
+<div id="banner" class="banner" hidden></div>
+<main>
+  <div id="filters" class="filters" aria-label="Filters"></div>
+  <section id="kpis" class="grid kpi" aria-label="Key figures"></section>
+  <section class="grid map-row">
+    <div class="card"><div class="head"><div><h2>Where</h2><div class="sub">Smart traps, Section 6 target areas, green-waste piles and crown damage</div></div></div>
+      <div id="map" class="map" role="region" aria-label="Map of pilot area"></div><div class="map-legend"></div></div>
+    <div class="card"><div class="head"><div><h2>Detections by night</h2><div class="sub">Human-confirmed, probable and pending frames per night (noon to noon)</div></div><div class="tools"></div></div><div id="nightly"></div></div>
+  </section>
+  <section class="grid two">
+    <div class="card"><div class="head"><div><h2>Hour of night</h2><div class="sub">Confirmed CRB by hour against total trigger volume</div></div><div class="tools"></div></div><div id="hourly"></div></div>
+    <div class="card"><div class="head"><div><h2>Trigger volume by night</h2><div class="sub">All PIR captures per camera per night, with mean wind speed</div></div><div class="tools"></div></div><div id="volume"></div></div>
+  </section>
+  <section class="grid two">
+    <div class="card"><div class="head"><div><h2>Triggers vs wind speed</h2><div class="sub">Captures per hour observed at each wind speed; the false-trigger driver</div></div><div class="tools"></div></div><div id="wind"></div></div>
+    <div class="card"><div class="head"><div><h2>Wind direction</h2><div class="sub">Share of captures by wind direction at capture time</div></div><div class="tools"></div></div><div id="winddir"></div></div>
+  </section>
+  <section class="card"><div class="head"><div><h2>Camera health</h2><div class="sub">Check-ins, battery and trigger-rate flags</div></div></div><div id="health" class="tablewrap"></div></section>
+  <section class="card"><div class="head"><div><h2>Recent flagged frames</h2><div class="sub">Most recent frames that passed the classifier threshold, newest first</div></div></div><div id="detections"></div></section>
+</main>
+<footer>Ulu HI-Tech · Ulu Lāhui Foundation · Ko Olina Community Association · Office of Councilmember Andria Tupola</footer>
+<script>
+CRB.ready(data => {
+  const s = data.summary, T = CRB.T();
+  let map, nightly, hourly, volume;
+  const wind = CRB.chart(document.getElementById("wind"), { title: "triggers_vs_wind", type: "bar",
+    labels: data.env.wind_speed.map(w => w.bin_mph + " mph"),
+    datasets: [{ label: "Captures per hour", color: T.cam.cam1, data: data.env.wind_speed.map(w => w.photos_per_hour) }],
+    yTitle: "captures / hour", table: { cols: [{ key: "bin_mph", label: "Wind (mph)" }, { key: "photos_per_hour", label: "Captures / hour", num: true, d: 1 }, { key: "photos", label: "Captures", num: true }, { key: "minutes_observed", label: "Minutes observed", num: true }], rows: data.env.wind_speed } });
+  const tot = data.env.wind_dir.reduce((a, d) => a + d.photos, 0) || 1;
+  CRB.chart(document.getElementById("winddir"), { title: "wind_direction", type: "bar",
+    labels: data.env.wind_dir.map(d => d.dir),
+    datasets: [{ label: "Share of captures", color: T.cam.cam1, data: data.env.wind_dir.map(d => +(100 * d.photos / tot).toFixed(1)) }],
+    yTitle: "% of captures", table: { cols: [{ key: "dir", label: "Direction" }, { key: "photos", label: "Captures", num: true }], rows: data.env.wind_dir } });
+
+  CRB.filters(data, st => {
+    const sel = CRB.select(data, st), t = sel.totals;
+    // KPI row: one hero, the rest tiles
+    const k = document.getElementById("kpis"); k.replaceChildren();
+    k.append(CRB.tile("Confirmed CRB detections", CRB.fmt(t.confirmed), { hero: true, delta: s.profile === "demo" ? `${sel.nightly.length} nights · ${sel.cams.length} cameras · all synthetic examples` : `${sel.nightly.length} nights · ${sel.cams.length} cameras` }));
+    k.append(CRB.tile("Nights since last confirmed", s.nights_since_confirmed == null ? "–" : CRB.fmt(s.nights_since_confirmed), { delta: s.last_confirmed_ts ? "last: " + CRB.fmtTs(s.last_confirmed_ts) : "no confirmed detection yet" }));
+    k.append(CRB.tile("Photos captured", CRB.compact(t.photos), { delta: `${CRB.fmt(t.flagged)} flagged (${CRB.pct(100 * t.flagged / (t.photos || 1))})` }));
+    k.append(CRB.tile("Pending human review", CRB.fmt(t.pending), { delta: `${CRB.fmt(t.probable)} probable at score ≥ ${s.thresholds.tau_high}` }));
+    const pc = s.pile_compliance;
+    k.append(CRB.tile("KOCA piles within 72 h", pc.pct_within_72h == null ? "–" : CRB.pct(pc.pct_within_72h), { delta: pc.koca_piles ? `${pc.koca_over_72h} of ${pc.koca_piles} piles over 72 h` : "no pile inventory yet", meter: pc.pct_within_72h, meterColor: pc.pct_within_72h >= 90 ? T.persist.under_48h : pc.pct_within_72h >= 70 ? T.persist["48_to_72h"] : T.persist.over_72h }));
+    const reporting = s.cameras.filter(c => c.photos_24h > 0).length;
+    const camTable = CRB.el("table", { class: "mini" }, ...s.cameras.map(c => CRB.el("tr", {},
+      CRB.el("td", {}, CRB.camShort(c.id)),
+      CRB.el("td", { class: c.health.length ? "warn" : "ok" }, c.health.length ? "⚠ " + c.health.join("; ") : "✓ healthy"))));
+    k.append(CRB.tile("Cameras reporting (24 h)", `${reporting} / ${s.cameras.length}`, { body: camTable }));
+
+    // nightly stacked detections (ordinal green ramp)
+    const labels = sel.nightly.map(n => CRB.fmtNight(n.night));
+    const nightlyCfg = { title: "detections_by_night", type: "bar", stacked: true, labels, yTitle: "frames",
+      datasets: ["confirmed", "probable", "pending"].map(st => ({ label: CRB.STATUS[st], color: T.status[st], data: sel.nightly.map(n => n[st]) })),
+      table: { cols: [{ key: "night", label: "Night" }, { key: "confirmed", label: "Confirmed", num: true }, { key: "probable", label: "Probable", num: true }, { key: "pending", label: "Pending", num: true }, { key: "photos", label: "Photos", num: true }], rows: sel.nightly } };
+    nightly ? nightly.update(nightlyCfg) : (nightly = CRB.chart(document.getElementById("nightly"), nightlyCfg));
+
+    // hour of night: confirmed (accent bars) over volume (gray) - two measures, so two scales are NOT used; volume is shown as share of its own max
+    const hl = CRB.HOURS.map(CRB.hourLabel);
+    const volMax = Math.max(1, ...sel.hourly.photos), confMax = Math.max(1, ...sel.hourly.confirmed);
+    const hourlyCfg = { title: "hour_of_night", type: "bar", labels: hl, yTitle: "% of that series' peak hour",
+      datasets: [{ label: "Confirmed CRB (share of peak)", color: T.status.confirmed, data: CRB.HOURS.map(h => +(100 * sel.hourly.confirmed[h] / confMax).toFixed(1)) },
+                 { label: "All captures (share of peak)", color: T.volume, data: CRB.HOURS.map(h => +(100 * sel.hourly.photos[h] / volMax).toFixed(1)) }],
+      note: `Peak hour bins over the selected nights: ${confMax} confirmed, ${CRB.fmt(volMax)} captures. Each series is indexed to its own peak so both fit one axis.`,
+      table: { cols: [{ key: "hour", label: "Hour" }, { key: "confirmed", label: "Confirmed", num: true }, { key: "photos", label: "Captures", num: true }], rows: CRB.HOURS.map(h => ({ hour: CRB.hourLabel(h), confirmed: sel.hourly.confirmed[h], photos: sel.hourly.photos[h] })) } };
+    hourly ? hourly.update(hourlyCfg) : (hourly = CRB.chart(document.getElementById("hourly"), hourlyCfg));
+
+    // volume per camera (categorical by camera id) with wind as a line on the same axis? No - different unit. Wind goes to the table and tooltip note.
+    const volCfg = { title: "trigger_volume_by_night", type: "bar", stacked: true, labels, yTitle: "captures",
+      datasets: sel.cams.map(c => ({ label: CRB.camShort(c) + " · " + CRB.camName(c), color: CRB.camColor(c), data: sel.nightly.map(n => n.per_camera[c]?.photos || 0) })),
+      note: "Mean wind (mph) per night: " + sel.nightly.map(n => n.wind_mph_mean ?? "–").join(" · "),
+      table: { cols: [{ key: "night", label: "Night" }, ...sel.cams.map(c => ({ key: c, label: CRB.camShort(c), num: true })), { key: "wind_mph_mean", label: "Mean wind (mph)", num: true, d: 1 }],
+        rows: sel.nightly.map(n => ({ night: n.night, wind_mph_mean: n.wind_mph_mean, ...Object.fromEntries(sel.cams.map(c => [c, n.per_camera[c]?.photos || 0])) })) } };
+    volume ? volume.update(volCfg) : (volume = CRB.chart(document.getElementById("volume"), volCfg));
+
+    // per-camera stats for the map within the current selection
+    const camStats = Object.fromEntries(sel.cams.map(c => [c, { confirmed: 0, probable: 0, pending: 0, photos: 0 }]));
+    for (const n of sel.nightly) for (const c of sel.cams) for (const k of ["confirmed", "probable", "pending", "photos"]) camStats[c][k] += n.per_camera[c]?.[k] || 0;
+    for (const c of s.cameras) if (!camStats[c.id]) camStats[c.id] = { confirmed: 0, probable: 0, pending: 0, photos: 0 };
+    if (map) map.remove();
+    map = CRB.map(document.getElementById("map"), data, { camStats });
+
+    CRB.detectionsTable(document.getElementById("detections"), sel.detections, { limit: 25 });
+  });
+
+  // health table (not filtered)
+  document.getElementById("health").append(CRB.table([
+    { key: "display_name", label: "Camera", render: (v, r) => CRB.el("a", { href: "trap.html?id=" + r.id }, v) },
+    { key: "last_seen", label: "Last photo", render: v => CRB.fmtTs(v) },
+    { key: "photos_24h", label: "Photos, last 24 h", num: true },
+    { key: "photos_total", label: "Photos, total", num: true },
+    { key: "battery_last", label: "Battery %", num: true },
+    { key: "coord_status", label: "Coordinates", render: v => v === "confirmed" ? CRB.el("span", { class: "health ok" }, "confirmed") : CRB.el("span", { class: "health warn" }, "⚠ " + v) },
+    { key: "health", label: "Flags", render: v => v.length ? CRB.el("span", { class: "health warn" }, "⚠ " + v.join("; ")) : CRB.el("span", { class: "health ok" }, "✓ healthy") },
+  ], s.cameras));
+});
+</script>
+</body>
+</html>
