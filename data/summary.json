@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-09-25T08:50:04-10:00",
+ "generated_at": "2026-10-01T03:44:07-10:00",
  "profile": "demo",
  "demo": false,
  "synthetic_detections": 10,
@@ -21,12 +21,12 @@
    "install_ts": "2026-08-27T12:00:00-10:00",
    "notes": "",
    "photos_total": 12295,
-   "photos_24h": 542,
+   "photos_24h": 0,
    "last_seen": "2026-09-24T18:48:04-10:00",
    "battery_last": 17,
    "confirmed": 5,
-   "probable": 1,
-   "pending": 18,
+   "probable": 0,
+   "pending": 0,
    "health": [
     "no photos in 6h",
     "battery low",
@@ -66,13 +66,14 @@
    "install_ts": "2026-08-27T13:30:00-10:00",
    "notes": "",
    "photos_total": 10413,
-   "photos_24h": 493,
+   "photos_24h": 0,
    "last_seen": "2026-09-25T04:52:57-10:00",
    "battery_last": 100,
    "confirmed": 5,
-   "probable": 1,
-   "pending": 8,
+   "probable": 0,
+   "pending": 0,
    "health": [
+    "no photos in 6h",
     "trigger rate > 300/h, reduce PIR sensitivity"
    ]
   }
@@ -80,16 +81,16 @@
  "totals": {
   "photos": 30314,
   "flagged": 38,
-  "probable": 2,
+  "probable": 0,
   "confirmed": 10,
-  "pending": 26,
-  "rejected": 30286,
+  "pending": 0,
+  "rejected": 30314,
   "nights": 30
  },
  "first_night": "2026-08-26",
  "last_night": "2026-09-24",
  "last_confirmed_ts": "2026-09-19T03:54:54-10:00",
- "nights_since_confirmed": 6,
+ "nights_since_confirmed": 12,
  "pile_compliance": {
   "koca_piles": 0,
   "koca_over_72h": 0,
@@ -97,11 +98,11 @@
  },
  "classifier": {
   "model_version": "crb-v1-uhinit+t",
-  "labelled": 88,
+  "labelled": 116,
   "tp": 0,
-  "fp": 0,
+  "fp": 2,
   "fn": 0,
-  "precision": null,
+  "precision": 0.0,
   "recall": null
  },
  "sampling_note": "Counts are PIR-triggered captures; trigger volume varies with wind. Detections per night are not normalized by sampling effort until a time-lapse stream exists."
